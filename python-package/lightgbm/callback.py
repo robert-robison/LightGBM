@@ -44,7 +44,9 @@ class EarlyStopException(Exception):
     in ``cv()`` or ``train()`` to trigger early stopping.
     """
 
-    def __init__(self, best_iteration: int, best_score: _ListOfEvalResultTuples) -> None:
+    def __init__(
+        self, best_iteration: int, best_score: _ListOfEvalResultTuples
+    ) -> None:
         """Create early stopping exception.
 
         Parameters
@@ -95,8 +97,17 @@ class _LogEvaluationCallback:
         self.show_stdv = show_stdv
 
     def __call__(self, env: CallbackEnv) -> None:
-        if self.period > 0 and env.evaluation_result_list and (env.iteration + 1) % self.period == 0:
-            result = "\t".join([_format_eval_result(x, self.show_stdv) for x in env.evaluation_result_list])
+        if (
+            self.period > 0
+            and env.evaluation_result_list
+            and (env.iteration + 1) % self.period == 0
+        ):
+            result = "\t".join(
+                [
+                    _format_eval_result(x, self.show_stdv)
+                    for x in env.evaluation_result_list
+                ]
+            )
             _log_info(f"[{env.iteration + 1}]\t{result}")
 
 
@@ -140,8 +151,9 @@ class _RecordEvaluationCallback:
     def _init(self, env: CallbackEnv) -> None:
         if env.evaluation_result_list is None:
             raise RuntimeError(
-                "record_evaluation() callback enabled but no evaluation results found. This is a probably bug in LightGBM. "
-                "Please report it at https://github.com/microsoft/LightGBM/issues"
+                "record_evaluation() callback enabled but no evaluation results found."
+                " This is a probably bug in LightGBM. Please report it at"
+                " https://github.com/microsoft/LightGBM/issues"
             )
         self.eval_result.clear()
         for item in env.evaluation_result_list:
@@ -161,8 +173,9 @@ class _RecordEvaluationCallback:
             self._init(env)
         if env.evaluation_result_list is None:
             raise RuntimeError(
-                "record_evaluation() callback enabled but no evaluation results found. This is a probably bug in LightGBM. "
-                "Please report it at https://github.com/microsoft/LightGBM/issues"
+                "record_evaluation() callback enabled but no evaluation results found."
+                " This is a probably bug in LightGBM. Please report it at"
+                " https://github.com/microsoft/LightGBM/issues"
             )
         for item in env.evaluation_result_list:
             if len(item) == 4:
@@ -226,7 +239,9 @@ class _ResetParameterCallback:
         for key, value in self.kwargs.items():
             if isinstance(value, list):
                 if len(value) != env.end_iteration - env.begin_iteration:
-                    raise ValueError(f"Length of list {key!r} has to be equal to 'num_boost_round'.")
+                    raise ValueError(
+                        f"Length of list {key!r} has to be equal to 'num_boost_round'."
+                    )
                 new_param = value[env.iteration - env.begin_iteration]
             elif callable(value):
                 new_param = value(env.iteration - env.begin_iteration)
@@ -280,6 +295,7 @@ class _EarlyStoppingCallback:
         first_metric_only: bool = False,
         verbose: bool = True,
         min_delta: Union[float, List[float]] = 0.0,
+        use_set: str | None = None,
     ) -> None:
         self.enabled = _should_enable_early_stopping(stopping_rounds)
 
@@ -290,6 +306,7 @@ class _EarlyStoppingCallback:
         self.first_metric_only = first_metric_only
         self.verbose = verbose
         self.min_delta = min_delta
+        self.use_set = use_set
 
         self._reset_storages()
 
@@ -321,9 +338,15 @@ class _EarlyStoppingCallback:
 
     def _init(self, env: CallbackEnv) -> None:
         if env.evaluation_result_list is None or env.evaluation_result_list == []:
-            raise ValueError("For early stopping, at least one dataset and eval metric is required for evaluation")
+            raise ValueError(
+                "For early stopping, at least one dataset and eval metric is required"
+                " for evaluation"
+            )
 
-        is_dart = any(env.params.get(alias, "") == "dart" for alias in _ConfigAliases.get("boosting"))
+        is_dart = any(
+            env.params.get(alias, "") == "dart"
+            for alias in _ConfigAliases.get("boosting")
+        )
         if is_dart:
             self.enabled = False
             _log_warning("Early stopping is not available in dart mode")
@@ -331,7 +354,9 @@ class _EarlyStoppingCallback:
 
         # validation sets are guaranteed to not be identical to the training data in cv()
         if isinstance(env.model, Booster):
-            only_train_set = len(env.evaluation_result_list) == 1 and self._is_train_set(
+            only_train_set = len(
+                env.evaluation_result_list
+            ) == 1 and self._is_train_set(
                 ds_name=env.evaluation_result_list[0][0],
                 eval_name=env.evaluation_result_list[0][1].split(" ")[0],
                 env=env,
@@ -342,7 +367,10 @@ class _EarlyStoppingCallback:
                 return
 
         if self.verbose:
-            _log_info(f"Training until validation scores don't improve for {self.stopping_rounds} rounds")
+            _log_info(
+                "Training until validation scores don't improve for"
+                f" {self.stopping_rounds} rounds"
+            )
 
         self._reset_storages()
 
@@ -350,25 +378,39 @@ class _EarlyStoppingCallback:
         n_datasets = len(env.evaluation_result_list) // n_metrics
         if isinstance(self.min_delta, list):
             if not all(t >= 0 for t in self.min_delta):
-                raise ValueError("Values for early stopping min_delta must be non-negative.")
+                raise ValueError(
+                    "Values for early stopping min_delta must be non-negative."
+                )
             if len(self.min_delta) == 0:
                 if self.verbose:
                     _log_info("Disabling min_delta for early stopping.")
                 deltas = [0.0] * n_datasets * n_metrics
             elif len(self.min_delta) == 1:
                 if self.verbose:
-                    _log_info(f"Using {self.min_delta[0]} as min_delta for all metrics.")
+                    _log_info(
+                        f"Using {self.min_delta[0]} as min_delta for all metrics."
+                    )
                 deltas = self.min_delta * n_datasets * n_metrics
             else:
                 if len(self.min_delta) != n_metrics:
-                    raise ValueError("Must provide a single value for min_delta or as many as metrics.")
+                    raise ValueError(
+                        "Must provide a single value for min_delta or as many as"
+                        " metrics."
+                    )
                 if self.first_metric_only and self.verbose:
-                    _log_info(f"Using only {self.min_delta[0]} as early stopping min_delta.")
+                    _log_info(
+                        f"Using only {self.min_delta[0]} as early stopping min_delta."
+                    )
                 deltas = self.min_delta * n_datasets
         else:
             if self.min_delta < 0:
                 raise ValueError("Early stopping min_delta must be non-negative.")
-            if self.min_delta > 0 and n_metrics > 1 and not self.first_metric_only and self.verbose:
+            if (
+                self.min_delta > 0
+                and n_metrics > 1
+                and not self.first_metric_only
+                and self.verbose
+            ):
                 _log_info(f"Using {self.min_delta} as min_delta for all metrics.")
             deltas = [self.min_delta] * n_datasets * n_metrics
 
@@ -383,12 +425,20 @@ class _EarlyStoppingCallback:
                 self.best_score.append(float("inf"))
                 self.cmp_op.append(partial(self._lt_delta, delta=delta))
 
-    def _final_iteration_check(self, env: CallbackEnv, eval_name_splitted: List[str], i: int) -> None:
+    def _final_iteration_check(
+        self, env: CallbackEnv, eval_name_splitted: List[str], i: int
+    ) -> None:
         if env.iteration == env.end_iteration - 1:
             if self.verbose:
-                best_score_str = "\t".join([_format_eval_result(x, show_stdv=True) for x in self.best_score_list[i]])
+                best_score_str = "\t".join(
+                    [
+                        _format_eval_result(x, show_stdv=True)
+                        for x in self.best_score_list[i]
+                    ]
+                )
                 _log_info(
-                    "Did not meet early stopping. " f"Best iteration is:\n[{self.best_iter[i] + 1}]\t{best_score_str}"
+                    "Did not meet early stopping. "
+                    f"Best iteration is:\n[{self.best_iter[i] + 1}]\t{best_score_str}"
                 )
                 if self.first_metric_only:
                     _log_info(f"Evaluated only: {eval_name_splitted[-1]}")
@@ -401,14 +451,17 @@ class _EarlyStoppingCallback:
             return
         if env.evaluation_result_list is None:
             raise RuntimeError(
-                "early_stopping() callback enabled but no evaluation results found. This is a probably bug in LightGBM. "
-                "Please report it at https://github.com/microsoft/LightGBM/issues"
+                "early_stopping() callback enabled but no evaluation results found."
+                " This is a probably bug in LightGBM. Please report it at"
+                " https://github.com/microsoft/LightGBM/issues"
             )
         # self.best_score_list is initialized to an empty list
         first_time_updating_best_score_list = self.best_score_list == []
         for i in range(len(env.evaluation_result_list)):
             score = env.evaluation_result_list[i][2]
-            if first_time_updating_best_score_list or self.cmp_op[i](score, self.best_score[i]):
+            if first_time_updating_best_score_list or self.cmp_op[i](
+                score, self.best_score[i]
+            ):
                 self.best_score[i] = score
                 self.best_iter[i] = env.iteration
                 if first_time_updating_best_score_list:
@@ -419,6 +472,9 @@ class _EarlyStoppingCallback:
             eval_name_splitted = env.evaluation_result_list[i][1].split(" ")
             if self.first_metric_only and self.first_metric != eval_name_splitted[-1]:
                 continue  # use only the first metric for early stopping
+            if self.use_set is not None:
+                if env.evaluation_result_list[i][0] != self.use_set:
+                    continue
             if self._is_train_set(
                 ds_name=env.evaluation_result_list[i][0],
                 eval_name=eval_name_splitted[0],
@@ -428,9 +484,15 @@ class _EarlyStoppingCallback:
             elif env.iteration - self.best_iter[i] >= self.stopping_rounds:
                 if self.verbose:
                     eval_result_str = "\t".join(
-                        [_format_eval_result(x, show_stdv=True) for x in self.best_score_list[i]]
+                        [
+                            _format_eval_result(x, show_stdv=True)
+                            for x in self.best_score_list[i]
+                        ]
                     )
-                    _log_info(f"Early stopping, best iteration is:\n[{self.best_iter[i] + 1}]\t{eval_result_str}")
+                    _log_info(
+                        "Early stopping, best iteration"
+                        f" is:\n[{self.best_iter[i] + 1}]\t{eval_result_str}"
+                    )
                     if self.first_metric_only:
                         _log_info(f"Evaluated only: {eval_name_splitted[-1]}")
                 raise EarlyStopException(self.best_iter[i], self.best_score_list[i])
@@ -445,7 +507,10 @@ def _should_enable_early_stopping(stopping_rounds: Any) -> bool:
     type is not int.
     """
     if not isinstance(stopping_rounds, int):
-        raise TypeError(f"early_stopping_round should be an integer. Got '{type(stopping_rounds).__name__}'")
+        raise TypeError(
+            "early_stopping_round should be an integer. Got"
+            f" '{type(stopping_rounds).__name__}'"
+        )
     return stopping_rounds > 0
 
 
@@ -454,6 +519,7 @@ def early_stopping(
     first_metric_only: bool = False,
     verbose: bool = True,
     min_delta: Union[float, List[float]] = 0.0,
+    use_set: str | None = None,
 ) -> _EarlyStoppingCallback:
     """Create a callback that activates early stopping.
 
@@ -493,4 +559,5 @@ def early_stopping(
         first_metric_only=first_metric_only,
         verbose=verbose,
         min_delta=min_delta,
+        use_set=use_set,
     )
